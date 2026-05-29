@@ -550,8 +550,9 @@ export const useStore = create<DashboardStore>((set, get) => {
         }
 
         await get().fetchCatalogFromSupabase();
-      } catch (err) {
+      } catch (err: any) {
         console.error("addProduct error:", err);
+        alert("addProduct Exception: " + (err?.message || JSON.stringify(err)));
       }
     },
 
@@ -608,8 +609,9 @@ export const useStore = create<DashboardStore>((set, get) => {
         }
 
         await get().fetchCatalogFromSupabase();
-      } catch (err) {
+      } catch (err: any) {
         console.error("updateProduct error:", err);
+        alert("updateProduct Exception: " + (err?.message || JSON.stringify(err)));
       }
     },
 
@@ -624,8 +626,9 @@ export const useStore = create<DashboardStore>((set, get) => {
           alert("Failed to delete product: " + error.message);
         }
         await get().fetchCatalogFromSupabase();
-      } catch (err) {
+      } catch (err: any) {
         console.error("deleteProduct error:", err);
+        alert("deleteProduct Exception: " + (err?.message || JSON.stringify(err)));
       }
     },
 
@@ -646,8 +649,9 @@ export const useStore = create<DashboardStore>((set, get) => {
           alert("Failed to add category: " + error.message);
         }
         await get().fetchCatalogFromSupabase();
-      } catch (err) {
+      } catch (err: any) {
         console.error("addCategory error:", err);
+        alert("addCategory Exception: " + (err?.message || JSON.stringify(err)));
       }
     },
 
@@ -666,8 +670,9 @@ export const useStore = create<DashboardStore>((set, get) => {
           alert("Failed to update category: " + error.message);
         }
         await get().fetchCatalogFromSupabase();
-      } catch (err) {
+      } catch (err: any) {
         console.error("updateCategory error:", err);
+        alert("updateCategory Exception: " + (err?.message || JSON.stringify(err)));
       }
     },
 
@@ -682,8 +687,9 @@ export const useStore = create<DashboardStore>((set, get) => {
           alert("Failed to delete category: " + error.message);
         }
         await get().fetchCatalogFromSupabase();
-      } catch (err) {
+      } catch (err: any) {
         console.error("deleteCategory error:", err);
+        alert("deleteCategory Exception: " + (err?.message || JSON.stringify(err)));
       }
     },
 
@@ -1212,6 +1218,10 @@ export const useStore = create<DashboardStore>((set, get) => {
     // HYDRATE AND SETUP AUTH EVENT LISTENER
     hydrate: () => {
       if (typeof window === 'undefined') return;
+
+      if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+        alert("CRITICAL: Supabase URL or Anon Key environment variables are missing from your browser environment. Your site will not connect to the database!");
+      }
 
       if (!(globalThis as any).__isAuthSubscribed) {
         (globalThis as any).__isAuthSubscribed = true;
