@@ -66,16 +66,6 @@ export default function AdminDashboard() {
     setLoginError('');
     setLoginLoading(true);
 
-    if (emailInput === 'admin@princess.com' && passwordInput === 'adminpc') {
-      setRole('admin');
-      confetti({
-        particleCount: 40,
-        spread: 60,
-        colors: ['#a855f7', '#ec4899']
-      });
-      setLoginLoading(false);
-      return;
-    }
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
