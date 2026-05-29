@@ -31,62 +31,95 @@ function CheckoutContent() {
   useEffect(() => {
     const statusParam = searchParams.get('status');
     const orderIdParam = searchParams.get('orderId');
-    if (statusParam === 'success' && orderIdParam) {
-      // Find the order details from Supabase since it has been completed
-      const fetchOrder = async () => {
-        try {
-          const { data, error } = await supabase
-            .from('orders')
-            .select('*')
-            .eq('id', orderIdParam)
-            .single();
-          if (data) {
-            setPlacedOrderDetails({
-              orderNumber: data.order_number,
-              totalAmount: Number(data.total_amount),
-              shippingAddress: typeof data.shipping_address === 'string' ? JSON.parse(data.shipping_address) : data.shipping_address
-            });
-            
-            // Clear cart locally
-            localStorage.removeItem('pc_cart');
+    const txnIdParam = searchParams.get('txnId');
 
-            // Celebrate
-            const end = Date.now() + (3 * 1000);
-            const colors = ['#fbcfe8', '#f472b6', '#e8daef', '#d4af37'];
-            (function frame() {
-              confetti({
-                particleCount: 2,
-                angle: 60,
-                spread: 55,
-                origin: { x: 0 },
-                colors: colors
-              });
-              confetti({
-                particleCount: 2,
-                angle: 120,
-                spread: 55,
-                origin: { x: 1 },
-                colors: colors
-              });
-              if (Date.now() < end) {
-                requestAnimationFrame(frame);
-              }
-            }());
-          }
-        } catch (err) {
-          console.error('Error fetching completed PhonePe order details:', err);
+    const handleVerification = async (orderId: string, txnId: string) => {
+      setPlacingOrder(true);
+      try {
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+        console.log(`Verifying payment for transaction: ${txnId}`);
+        const response = await fetch(`${backendUrl}/status/${txnId}?orderId=${orderId}`);
+        const data = await response.json();
+        
+        if (data && data.success) {
+          await finalizeOrder(orderId);
+        } else {
+          alert('Payment verification failed. Please try again or check with your bank.');
+          cleanupUrlParams();
         }
-      };
-      fetchOrder();
-    } else if (statusParam === 'failed') {
-      alert('Your payment could not be processed. Please try again or use another payment method.');
-      // Remove query parameters from URL without reloading
+      } catch (err) {
+        console.error('Redirection payment verification failed:', err);
+        alert('An error occurred while verifying payment status.');
+        cleanupUrlParams();
+      } finally {
+        setPlacingOrder(false);
+      }
+    };
+
+    const cleanupUrlParams = () => {
       const url = new URL(window.location.href);
       url.searchParams.delete('status');
       url.searchParams.delete('orderId');
+      url.searchParams.delete('txnId');
       window.history.replaceState({}, '', url.pathname);
+    };
+
+    const finalizeOrder = async (orderId: string) => {
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('id', orderId)
+          .single();
+        if (data) {
+          setPlacedOrderDetails({
+            orderNumber: data.order_number,
+            totalAmount: Number(data.total_amount),
+            shippingAddress: typeof data.shipping_address === 'string' ? JSON.parse(data.shipping_address) : data.shipping_address
+          });
+          
+          // Clear cart locally
+          localStorage.removeItem('pc_cart');
+
+          // Celebrate
+          const end = Date.now() + (3 * 1000);
+          const colors = ['#fbcfe8', '#f472b6', '#e8daef', '#d4af37'];
+          (function frame() {
+            confetti({
+              particleCount: 2,
+              angle: 60,
+              spread: 55,
+              origin: { x: 0 },
+              colors: colors
+            });
+            confetti({
+              particleCount: 2,
+              angle: 120,
+              spread: 55,
+              origin: { x: 1 },
+              colors: colors
+            });
+            if (Date.now() < end) {
+              requestAnimationFrame(frame);
+            }
+          }());
+
+          cleanupUrlParams();
+        }
+      } catch (err) {
+        console.error('Error fetching completed order details:', err);
+      }
+    };
+
+    if (statusParam === 'success' && orderIdParam) {
+      finalizeOrder(orderIdParam);
+    } else if (orderIdParam && txnIdParam && !statusParam) {
+      handleVerification(orderIdParam, txnIdParam);
+    } else if (statusParam === 'failed') {
+      alert('Your payment could not be processed. Please try again or use another payment method.');
+      cleanupUrlParams();
     }
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   // Form inputs
   const [fullName, setFullName] = useState('');
