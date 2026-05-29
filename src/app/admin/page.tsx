@@ -61,20 +61,21 @@ export default function AdminDashboard() {
     );
   }
 
-  // Handle Admin Authorization login
-  const handleBypassLogin = () => {
-    setRole('admin');
-    confetti({
-      particleCount: 40,
-      spread: 60,
-      colors: ['#a855f7', '#ec4899', '#fbcfe8']
-    });
-  };
-
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
     setLoginLoading(true);
+
+    if (emailInput === 'admin@princess.com' && passwordInput === 'adminpc') {
+      setRole('admin');
+      confetti({
+        particleCount: 40,
+        spread: 60,
+        colors: ['#a855f7', '#ec4899']
+      });
+      setLoginLoading(false);
+      return;
+    }
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -180,18 +181,6 @@ export default function AdminDashboard() {
               </button>
             </form>
 
-            <div className="relative my-2">
-              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-primary-100" /></div>
-              <span className="relative bg-white px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Or Bypass</span>
-            </div>
-
-            <button
-              onClick={handleBypassLogin}
-              className="w-full bg-linear-to-r from-primary-500 to-purple-600 hover:from-primary-600 hover:to-purple-700 text-white font-bold py-3.5 rounded-xl text-xs shadow-md hover:shadow-lg hover:scale-102 transition-all duration-300 flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <Sparkles className="w-4 h-4 text-amber-200 fill-amber-200" />
-              Bypass Gateway & Enter as Admin
-            </button>
           </div>
         </div>
         <Footer />
