@@ -523,6 +523,7 @@ export const useStore = create<DashboardStore>((set, get) => {
 
         if (prodErr || !insertedProduct) {
           console.error("Error inserting product:", prodErr);
+          alert("Failed to insert product: " + (prodErr?.message || "Verify your admin permissions."));
           return;
         }
 
@@ -577,6 +578,7 @@ export const useStore = create<DashboardStore>((set, get) => {
             .eq('id', id);
           if (prodErr) {
             console.error("Error updating product:", prodErr);
+            alert("Failed to update product: " + prodErr.message);
             return;
           }
         }
@@ -617,7 +619,10 @@ export const useStore = create<DashboardStore>((set, get) => {
           .from('products')
           .update({ is_deleted: true })
           .eq('id', id);
-        if (error) console.error("Error soft deleting product:", error);
+        if (error) {
+          console.error("Error soft deleting product:", error);
+          alert("Failed to delete product: " + error.message);
+        }
         await get().fetchCatalogFromSupabase();
       } catch (err) {
         console.error("deleteProduct error:", err);
@@ -636,7 +641,10 @@ export const useStore = create<DashboardStore>((set, get) => {
             description: cat.description,
             image_url: cat.image_url
           });
-        if (error) console.error("Error adding category:", error);
+        if (error) {
+          console.error("Error adding category:", error);
+          alert("Failed to add category: " + error.message);
+        }
         await get().fetchCatalogFromSupabase();
       } catch (err) {
         console.error("addCategory error:", err);
@@ -653,7 +661,10 @@ export const useStore = create<DashboardStore>((set, get) => {
           .from('categories')
           .update(updateData)
           .eq('id', id);
-        if (error) console.error("Error updating category:", error);
+        if (error) {
+          console.error("Error updating category:", error);
+          alert("Failed to update category: " + error.message);
+        }
         await get().fetchCatalogFromSupabase();
       } catch (err) {
         console.error("updateCategory error:", err);
@@ -666,7 +677,10 @@ export const useStore = create<DashboardStore>((set, get) => {
           .from('categories')
           .delete()
           .eq('id', id);
-        if (error) console.error("Error deleting category:", error);
+        if (error) {
+          console.error("Error deleting category:", error);
+          alert("Failed to delete category: " + error.message);
+        }
         await get().fetchCatalogFromSupabase();
       } catch (err) {
         console.error("deleteCategory error:", err);
