@@ -1241,7 +1241,7 @@ export const useStore = create<DashboardStore>((set, get) => {
                   id: session.user.id,
                   email: session.user.email || '',
                   full_name: session.user.user_metadata?.full_name || '',
-                  role: 'customer'
+                  role: session.user.email === 'admin@princess.com' ? 'admin' : 'customer'
                 })
                 .select()
                 .single();
@@ -1249,6 +1249,10 @@ export const useStore = create<DashboardStore>((set, get) => {
               if (newProfile) {
                 profile = newProfile;
               }
+            } else if (session.user.email === 'admin@princess.com' && profile.role !== 'admin') {
+              // Fix for existing profile with wrong role
+              await supabase.from('profiles').update({ role: 'admin' }).eq('id', session.user.id);
+              profile.role = 'admin';
             }
 
             const userProfile = profile || {
