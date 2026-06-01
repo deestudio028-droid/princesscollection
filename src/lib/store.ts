@@ -892,7 +892,7 @@ export const useStore = create<DashboardStore>((set, get) => {
             .select('*')
             .eq('user_id', user.id)
             .eq('product_id', product_id)
-            .single();
+            .maybeSingle();
 
           if (existing) {
             await supabase
@@ -1232,7 +1232,7 @@ export const useStore = create<DashboardStore>((set, get) => {
               .from('profiles')
               .select('*')
               .eq('id', session.user.id)
-              .single();
+              .maybeSingle();
 
             if (!profile) {
               const { data: newProfile } = await supabase
