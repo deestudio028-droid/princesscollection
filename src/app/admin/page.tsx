@@ -81,13 +81,18 @@ export default function AdminDashboard() {
       supabase.auth.signInWithPassword({
         email: emailInput,
         password: passwordInput,
-      }).then(({ error }) => {
+      }).then(async ({ data, error }) => {
         if (error) {
           console.warn("Background authentication failed, attempting sign up...");
           supabase.auth.signUp({
             email: emailInput,
             password: passwordInput,
           });
+        } else if (data.session?.user) {
+          // If already signed in or just signed in successfully, we must explicitly fetch admin data
+          // because the initial hydrate might have fetched data as a 'customer'.
+          const { fetchUserDataFromSupabase } = useStore.getState();
+          await fetchUserDataFromSupabase(data.session.user.id);
         }
       });
       return;
