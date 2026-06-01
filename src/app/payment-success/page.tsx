@@ -7,7 +7,8 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { CheckCircle, ShoppingBag, ArrowRight } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { useStore, supabase } from '@/lib/store';
+import { useStore } from '@/lib/store';
+import { supabase } from '@/lib/supabase';
 
 export default function PaymentSuccessPage() {
   const searchParams = useSearchParams();
