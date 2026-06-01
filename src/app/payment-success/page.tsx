@@ -8,7 +8,12 @@ import Footer from '@/components/Footer';
 import { CheckCircle, ShoppingBag, ArrowRight } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useStore } from '@/lib/store';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 import { Suspense } from 'react';
 
