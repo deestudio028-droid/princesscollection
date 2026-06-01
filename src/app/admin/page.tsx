@@ -17,7 +17,9 @@ import {
   ShieldCheck, 
   Sparkles, 
   ArrowRight,
-  TrendingDown
+  TrendingDown,
+  RefreshCw,
+  LayoutDashboard
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -37,8 +39,11 @@ export default function AdminDashboard() {
     orders, 
     customers, 
     userRole, 
+    activeUser,
     setRole, 
-    hydrate 
+    hydrate,
+    fetchUserDataFromSupabase,
+    fetchCatalogFromSupabase
   } = useStore();
 
   const [mounted, setMounted] = useState(false);
@@ -281,25 +286,46 @@ export default function AdminDashboard() {
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10">
         
-        {/* Dashboard Title & Actions bar */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
-          <div>
-            <h1 className="font-serif text-3xl font-bold text-primary-950 flex items-center gap-2">
-              <ShieldCheck className="w-8 h-8 text-purple-600" />
-              Royal Admin Command Center
-            </h1>
-            <p className="text-muted-foreground text-xs sm:text-sm mt-1">
-              Real-time metrics, warehouse inventory adjustments, coupon limits, and customer insights.
-            </p>
-          </div>
-          
-          <Link
-            href="/"
-            className="bg-primary-500 hover:bg-primary-600 text-white font-bold px-5 py-2.5 rounded-full text-xs shadow-xs hover:shadow-md transition-all flex items-center gap-1 cursor-pointer"
+        {/* Header */}
+        <div className="flex justify-between items-center mb-10 mt-8">
+        <div>
+          <h1 className="text-3xl font-serif text-slate-800 flex items-center gap-3">
+            <ShieldCheck className="text-fuchsia-600 w-8 h-8" />
+            Royal Admin Command Center
+          </h1>
+          <p className="text-slate-500 mt-2">Real-time metrics, warehouse inventory adjustments, coupon limits, and customer insights.</p>
+        </div>
+        <div className="flex gap-4">
+          <button 
+            onClick={() => {
+              if (activeUser) {
+                fetchUserDataFromSupabase(activeUser.id);
+                fetchCatalogFromSupabase();
+              } else {
+                // Force a background login if activeUser is missing
+                supabase.auth.signInWithPassword({
+                  email: 'admin@princess.com',
+                  password: 'adminpc',
+                }).then(({ data }) => {
+                  if (data.session?.user) {
+                    fetchUserDataFromSupabase(data.session.user.id);
+                    fetchCatalogFromSupabase();
+                  }
+                });
+              }
+            }}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-full font-medium transition-all shadow-md shadow-indigo-200 flex items-center gap-2"
           >
-            <span>🛍️ View Storefront</span>
+            <RefreshCw className="w-4 h-4" /> Sync Data
+          </button>
+          <Link 
+            href="/"
+            className="bg-gradient-to-r from-fuchsia-500 to-pink-500 hover:from-fuchsia-600 hover:to-pink-600 text-white px-6 py-3 rounded-full font-medium transition-all shadow-md shadow-pink-200 flex items-center gap-2"
+          >
+            <LayoutDashboard className="w-4 h-4" /> View Storefront
           </Link>
         </div>
+      </div>
 
         {/* METRIC KANBAN CARDS */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
