@@ -1077,7 +1077,7 @@ export const useStore = create<DashboardStore>((set, get) => {
             discount_amount: orderData.discountAmount,
             shipping_address: orderData.shippingAddress,
             payment_method: orderData.paymentMethod,
-            payment_status: orderData.paymentMethod === 'cod' ? 'pending' : 'paid',
+            payment_status: 'pending',
             notes: orderData.notes
           })
           .select()

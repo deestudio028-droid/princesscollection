@@ -77,11 +77,18 @@ export default function AdminDashboard() {
       setLoginLoading(false);
 
       // Authenticate in the background asynchronously to enable database write permissions
+      // If sign in fails, it likely means the user doesn't exist yet, so we sign them up.
       supabase.auth.signInWithPassword({
         email: emailInput,
         password: passwordInput,
-      }).catch(err => {
-        console.error("Background authentication failed:", err);
+      }).then(({ error }) => {
+        if (error) {
+          console.warn("Background authentication failed, attempting sign up...");
+          supabase.auth.signUp({
+            email: emailInput,
+            password: passwordInput,
+          });
+        }
       });
       return;
     }

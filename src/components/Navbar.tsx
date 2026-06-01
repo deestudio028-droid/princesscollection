@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import Image from 'next/image';
 import { useStore } from '@/lib/store';
 import { ShoppingBag, Heart, User, ShieldCheck, Sparkles, Menu, X } from 'lucide-react';
 
@@ -24,15 +25,17 @@ export default function Navbar() {
           {/* Logo and Brand */}
           <div className="flex items-center">
             <Link href="/" className="flex items-center gap-2 group">
-              <div className="w-9 h-9 rounded-full bg-primary-100 flex items-center justify-between p-1.5 border border-primary-300 group-hover:scale-110 transition-transform duration-300 shadow-xs">
-                <Sparkles className="w-5 h-5 text-primary-500 fill-primary-100" />
+              <div className="rounded-full overflow-hidden border-2 border-primary-100 group-hover:border-primary-300 transition-colors duration-300 shadow-sm relative w-10 h-10">
+                <Image 
+                  src="/logo.jpg" 
+                  alt="Princess Collection" 
+                  fill
+                  className="object-cover"
+                />
               </div>
               <div className="flex flex-col">
                 <span className="font-serif text-xl font-bold tracking-wider text-primary-700 group-hover:text-primary-500 transition-colors duration-200">
                   Princess Collection
-                </span>
-                <span className="text-[9px] uppercase tracking-widest text-muted-foreground -mt-1">
-                  Ornaments As Unique As You
                 </span>
               </div>
             </Link>

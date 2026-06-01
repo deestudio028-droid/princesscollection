@@ -49,9 +49,11 @@ export default function AdminOrders() {
   }
 
   // Filter orders
+  const validOrders = orders.filter(o => !(o.payment_method === 'phonepe' && o.payment_status === 'pending'));
+
   const filteredOrders = statusFilter === 'all' 
-    ? orders 
-    : orders.filter((o) => o.status === statusFilter);
+    ? validOrders 
+    : validOrders.filter((o) => o.status === statusFilter);
 
   const handleStatusChange = (id: string, status: Order['status']) => {
     updateOrderStatus(id, status);
