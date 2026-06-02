@@ -28,6 +28,16 @@ export default function AdminLogin() {
     setLoading(true);
 
     try {
+      // Force clear any stuck locks or corrupted sessions before trying to log in
+      // This specifically fixes the "Authenticating..." infinite hang caused by Supabase locks.
+      if (typeof window !== 'undefined') {
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('sb-')) {
+            localStorage.removeItem(key);
+          }
+        });
+      }
+
       const { data, error: loginError } = await supabase.auth.signInWithPassword({
         email,
         password
