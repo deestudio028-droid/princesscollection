@@ -19,6 +19,8 @@ export default function AdminProducts() {
   const [stockQuantity, setStockQuantity] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [imagesList, setImagesList] = useState<string[]>([]);
+  const [isFeatured, setIsFeatured] = useState(false);
+  const [isBestseller, setIsBestseller] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -82,8 +84,8 @@ export default function AdminProducts() {
       category_id: categoryId,
       tags: [],
       images: imagesList.length > 0 ? imagesList : ['https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=500'],
-      is_featured: false,
-      is_bestseller: false
+      is_featured: isFeatured,
+      is_bestseller: isBestseller
     });
 
     setSaving(false);
@@ -100,6 +102,8 @@ export default function AdminProducts() {
     setStockQuantity(product.stock_quantity.toString());
     setCategoryId(product.category_id || '');
     setImagesList(product.images || []);
+    setIsFeatured(!!product.is_featured);
+    setIsBestseller(!!product.is_bestseller);
     setShowEditModal(true);
   };
 
@@ -115,7 +119,9 @@ export default function AdminProducts() {
       discount_price: discountPrice ? Number(discountPrice) : undefined,
       stock_quantity: Number(stockQuantity),
       category_id: categoryId,
-      images: imagesList.length > 0 ? imagesList : ['https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=500']
+      images: imagesList.length > 0 ? imagesList : ['https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=500'],
+      is_featured: isFeatured,
+      is_bestseller: isBestseller
     });
 
     setSaving(false);
@@ -140,6 +146,7 @@ export default function AdminProducts() {
         <button
           onClick={() => {
             setTitle(''); setDescription(''); setPrice(''); setDiscountPrice(''); setStockQuantity(''); setCategoryId(categories[0]?.id || ''); setImagesList([]);
+            setIsFeatured(false); setIsBestseller(false);
             setShowAddModal(true);
           }}
           className="bg-fuchsia-600 hover:bg-fuchsia-700 text-white font-bold px-5 py-2.5 rounded-xl text-sm shadow-sm transition-all flex items-center gap-2"
@@ -170,7 +177,11 @@ export default function AdminProducts() {
                       <img src={p.images[0]} alt={p.title} className="w-full h-full object-cover" />
                     </div>
                     <div>
-                      <p className="font-bold text-slate-900 text-sm">{p.title}</p>
+                      <p className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                        {p.title}
+                        {p.is_featured && <span className="bg-amber-100 text-amber-700 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">Featured</span>}
+                        {p.is_bestseller && <span className="bg-fuchsia-100 text-fuchsia-700 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">Bestseller</span>}
+                      </p>
                     </div>
                   </td>
                   <td className="p-4 text-sm text-slate-600">
@@ -238,6 +249,16 @@ export default function AdminProducts() {
                 <div className="sm:col-span-2">
                   <label className="block text-xs text-slate-500 font-bold uppercase tracking-wider mb-2">Description</label>
                   <textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl text-sm focus:ring-2 focus:ring-fuchsia-500 focus:outline-hidden resize-none" />
+                </div>
+                <div className="sm:col-span-2 flex items-center gap-8">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={isFeatured} onChange={(e) => setIsFeatured(e.target.checked)} className="w-4 h-4 text-fuchsia-600 rounded border-slate-300 focus:ring-fuchsia-500" />
+                    <span className="text-sm font-bold text-slate-700">Featured Creation</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={isBestseller} onChange={(e) => setIsBestseller(e.target.checked)} className="w-4 h-4 text-fuchsia-600 rounded border-slate-300 focus:ring-fuchsia-500" />
+                    <span className="text-sm font-bold text-slate-700">Our Best Seller</span>
+                  </label>
                 </div>
                 <div className="sm:col-span-2">
                   <label className="block text-xs text-slate-500 font-bold uppercase tracking-wider mb-2">Images</label>

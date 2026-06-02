@@ -13,7 +13,8 @@ import {
   LogOut,
   ShieldCheck,
   PackageSearch,
-  Ticket
+  Ticket,
+  Camera
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -62,6 +63,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: 'Orders', href: '/admin/orders', icon: PackageSearch },
     { name: 'Customers', href: '/admin/customers', icon: Users },
     { name: 'Coupons', href: '/admin/coupons', icon: Ticket },
+    { name: 'Social Feed', href: '/admin/social', icon: Camera },
   ];
 
   return (
