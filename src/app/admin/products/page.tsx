@@ -9,6 +9,8 @@ export default function AdminProducts() {
   const { products, categories, addProduct, updateProduct, deleteProduct, hydrate } = useStore();
   const [mounted, setMounted] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
   
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -89,6 +91,39 @@ export default function AdminProducts() {
     confetti({ particleCount: 30, spread: 50, colors: ['#a855f7', '#ec4899'] });
   };
 
+  const openEditModal = (product: any) => {
+    setSelectedProduct(product);
+    setTitle(product.title);
+    setDescription(product.description || '');
+    setPrice(product.price.toString());
+    setDiscountPrice(product.discount_price?.toString() || '');
+    setStockQuantity(product.stock_quantity.toString());
+    setCategoryId(product.category_id || '');
+    setImagesList(product.images || []);
+    setShowEditModal(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProduct || !title || !price || !stockQuantity || !categoryId) return;
+    setSaving(true);
+
+    await updateProduct(selectedProduct.id, {
+      title,
+      description,
+      price: Number(price),
+      discount_price: discountPrice ? Number(discountPrice) : undefined,
+      stock_quantity: Number(stockQuantity),
+      category_id: categoryId,
+      images: imagesList.length > 0 ? imagesList : ['https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=500']
+    });
+
+    setSaving(false);
+    setShowEditModal(false);
+    setSelectedProduct(null);
+    confetti({ particleCount: 30, spread: 50, colors: ['#a855f7', '#ec4899'] });
+  };
+
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this product?')) {
       await deleteProduct(id);
@@ -150,6 +185,9 @@ export default function AdminProducts() {
                     </span>
                   </td>
                   <td className="p-4 text-right pr-6">
+                    <button onClick={() => openEditModal(p)} className="text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition-all" title="Edit">
+                      <Edit2 className="w-4 h-4" />
+                    </button>
                     <button onClick={() => handleDelete(p.id)} className="text-rose-500 hover:bg-rose-50 p-2 rounded-lg transition-all" title="Delete">
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -166,15 +204,17 @@ export default function AdminProducts() {
         </div>
       </div>
 
-      {showAddModal && (
+      {(showAddModal || showEditModal) && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-100 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto">
-            <button onClick={() => setShowAddModal(false)} className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 transition-colors">
+            <button onClick={() => { setShowAddModal(false); setShowEditModal(false); }} className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 transition-colors">
               <X className="w-5 h-5" />
             </button>
-            <h3 className="font-serif text-xl font-bold text-slate-900 mb-6">Add New Jewelry Piece</h3>
+            <h3 className="font-serif text-xl font-bold text-slate-900 mb-6">
+              {showAddModal ? 'Add New Jewelry Piece' : 'Edit Jewelry Piece'}
+            </h3>
 
-            <form onSubmit={handleAddSubmit} className="flex flex-col gap-5">
+            <form onSubmit={showAddModal ? handleAddSubmit : handleEditSubmit} className="flex flex-col gap-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div className="sm:col-span-2">
                   <label className="block text-xs text-slate-500 font-bold uppercase tracking-wider mb-2">Title</label>
@@ -219,7 +259,9 @@ export default function AdminProducts() {
                 </div>
               </div>
               <button type="submit" disabled={saving} className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-xl transition-colors mt-2 text-sm disabled:opacity-75">
-                {saving ? 'Adding Product...' : 'Add Product'}
+                {saving 
+                  ? (showAddModal ? 'Adding Product...' : 'Saving Changes...') 
+                  : (showAddModal ? 'Add Product' : 'Save Changes')}
               </button>
             </form>
           </div>
