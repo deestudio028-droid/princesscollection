@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 import { 
   DollarSign, 
   ShoppingBag, 
@@ -29,13 +29,27 @@ import {
 } from 'recharts';
 import confetti from 'canvas-confetti';
 
+// Create a dedicated, memory-only Supabase client for the Admin Dashboard.
+// This COMPLETELY bypasses localStorage, which fixes the "Timeout" and hanging issues
+// caused by corrupted browser session locks. 
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+const adminSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: false, // DO NOT use localStorage
+    autoRefreshToken: false,
+    detectSessionInUrl: false
+  }
+});
+
 export default function AdminDashboard() {
   const [products, setProducts] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   
   const [userRole, setUserRole] = useState<'guest' | 'customer' | 'admin'>('guest');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false); // Start false since we require manual login
   const [syncing, setSyncing] = useState(false);
 
   const [emailInput, setEmailInput] = useState('');
@@ -50,9 +64,9 @@ export default function AdminDashboard() {
         { data: ordersData },
         { data: profilesData }
       ] = await Promise.all([
-        supabase.from('products').select('*').eq('is_deleted', false),
-        supabase.from('orders').select('*').order('created_at', { ascending: false }),
-        supabase.from('profiles').select('*')
+        adminSupabase.from('products').select('*').eq('is_deleted', false),
+        adminSupabase.from('orders').select('*').order('created_at', { ascending: false }),
+        adminSupabase.from('profiles').select('*')
       ]);
 
       setProducts(productsData || []);
@@ -63,61 +77,8 @@ export default function AdminDashboard() {
     }
   };
 
-  useEffect(() => {
-    let isMounted = true;
-
-    // Safety fallback: Never show spinner for more than 3 seconds
-    const fallbackTimer = setTimeout(() => {
-      if (isMounted && isLoading) {
-        setIsLoading(false);
-      }
-    }, 3000);
-
-    const init = async () => {
-      try {
-        // Use Promise.race to prevent getSession from hanging due to localStorage locks
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise<any>((_, reject) => setTimeout(() => reject(new Error("Timeout")), 2000));
-        const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
-        
-        if (session?.user) {
-          const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-          if (profile?.role === 'admin') {
-            if (isMounted) setUserRole('admin');
-            await fetchAdminData();
-          } else {
-            if (isMounted) setUserRole('guest');
-          }
-        }
-      } catch (e) {
-        console.error("Init session error", e);
-      } finally {
-        if (isMounted) setIsLoading(false);
-      }
-    };
-    init();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-        if (profile?.role === 'admin') {
-          if (isMounted) setUserRole('admin');
-          await fetchAdminData();
-        } else {
-          if (isMounted) setUserRole('guest');
-        }
-      } else {
-        if (isMounted) setUserRole('guest');
-      }
-      if (isMounted) setIsLoading(false);
-    });
-
-    return () => {
-      isMounted = false;
-      clearTimeout(fallbackTimer);
-      subscription.unsubscribe();
-    };
-  }, []);
+  // We completely remove the auto-login useEffect to guarantee no local storage hangs.
+  // The user MUST log in manually, which guarantees a fresh in-memory session.
 
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,7 +86,7 @@ export default function AdminDashboard() {
     setLoginLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await adminSupabase.auth.signInWithPassword({
         email: emailInput,
         password: passwordInput,
       });
@@ -137,14 +98,14 @@ export default function AdminDashboard() {
       }
 
       if (data.user) {
-        const { data: profile, error: profileErr } = await supabase
+        const { data: profile, error: profileErr } = await adminSupabase
           .from('profiles')
           .select('role')
           .eq('id', data.user.id)
           .single();
 
         if (profileErr || !profile || profile.role !== 'admin') {
-          await supabase.auth.signOut();
+          await adminSupabase.auth.signOut();
           setLoginError('Access Denied: You do not have admin privileges.');
           setLoginLoading(false);
           return;
