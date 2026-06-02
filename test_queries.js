@@ -25,7 +25,7 @@ async function test() {
   console.log("Orders:", ords ? ords.length : null, "Error:", ordErr?.message);
   if (ords) {
     ords.forEach(o => {
-      console.log(`Order ${o.id}: items = ${o.order_items ? o.order_items.length : 'NULL'}`);
+      console.log(`Order ${o.id}: user_id = ${o.user_id}`);
     });
   }
 
@@ -33,8 +33,9 @@ async function test() {
   const { data: profiles, error: profErr } = await supabase.from('profiles').select('*');
   console.log("Profiles:", profiles ? profiles.length : null, "Error:", profErr?.message);
   if (profiles) {
-    const adminProf = profiles.find(p => p.email === 'admin@princess.com');
-    console.log("Admin DB Role:", adminProf ? adminProf.role : 'Not Found');
+    profiles.forEach(p => {
+      console.log(`User: ${p.email} | ID: ${p.id} | Role: ${p.role}`);
+    });
   }
 
   console.log("Fetching Products...");

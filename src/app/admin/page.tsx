@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useStore, Order, Product } from '@/lib/store';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { supabase } from '@/lib/supabase';
@@ -13,11 +12,8 @@ import {
   TrendingUp, 
   Users, 
   Lock, 
-  Key, 
   ShieldCheck, 
-  Sparkles, 
   ArrowRight,
-  TrendingDown,
   RefreshCw,
   LayoutDashboard
 } from 'lucide-react';
@@ -34,74 +30,86 @@ import {
 import confetti from 'canvas-confetti';
 
 export default function AdminDashboard() {
-  const { 
-    products, 
-    orders, 
-    customers, 
-    userRole, 
-    activeUser,
-    setRole, 
-    hydrate,
-    fetchUserDataFromSupabase,
-    fetchCatalogFromSupabase
-  } = useStore();
+  const [products, setProducts] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
+  
+  const [userRole, setUserRole] = useState<'guest' | 'customer' | 'admin'>('guest');
+  const [isLoading, setIsLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
 
-  const [mounted, setMounted] = useState(false);
   const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
 
-  // Hydrate store on mount
-  useEffect(() => {
-    hydrate();
-    setMounted(true);
-  }, [hydrate]);
+  const fetchAdminData = async () => {
+    try {
+      const [
+        { data: productsData },
+        { data: ordersData },
+        { data: profilesData }
+      ] = await Promise.all([
+        supabase.from('products').select('*').eq('is_deleted', false),
+        supabase.from('orders').select('*').order('created_at', { ascending: false }),
+        supabase.from('profiles').select('*')
+      ]);
 
-  if (!mounted) {
-    return (
-      <div className="min-h-screen bg-pink-50/20 flex items-center justify-center">
-        <div className="w-12 h-12 rounded-full border-4 border-primary-200 border-t-primary-500 animate-spin" />
-      </div>
-    );
-  }
+      setProducts(productsData || []);
+      setOrders(ordersData || []);
+      setCustomers(profilesData || []);
+    } catch (err) {
+      console.error("Error fetching admin data", err);
+    }
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const init = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+          if (profile?.role === 'admin') {
+            if (isMounted) setUserRole('admin');
+            await fetchAdminData();
+          } else {
+            if (isMounted) setUserRole('guest');
+          }
+        }
+      } catch (e) {
+        console.error("Init session error", e);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+    init();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+        if (profile?.role === 'admin') {
+          setUserRole('admin');
+          await fetchAdminData();
+        } else {
+          setUserRole('guest');
+        }
+      } else {
+        setUserRole('guest');
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
     setLoginLoading(true);
-
-    // Fast-path check for instant admin panel entry
-    if (emailInput === 'admin@princess.com' && passwordInput === 'adminpc') {
-      setRole('admin');
-      confetti({
-        particleCount: 45,
-        spread: 70,
-        colors: ['#a855f7', '#ec4899', '#fbcfe8']
-      });
-      setLoginLoading(false);
-
-      // Authenticate in the background asynchronously to enable database write permissions
-      // If sign in fails, it likely means the user doesn't exist yet, so we sign them up.
-      supabase.auth.signInWithPassword({
-        email: emailInput,
-        password: passwordInput,
-      }).then(async ({ data, error }) => {
-        if (error) {
-          console.warn("Background authentication failed, attempting sign up...");
-          supabase.auth.signUp({
-            email: emailInput,
-            password: passwordInput,
-          });
-        } else if (data.session?.user) {
-          // If already signed in or just signed in successfully, we must explicitly fetch admin data
-          // because the initial hydrate might have fetched data as a 'customer'.
-          const { fetchUserDataFromSupabase } = useStore.getState();
-          await fetchUserDataFromSupabase(data.session.user.id);
-        }
-      });
-      return;
-    }
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -129,7 +137,8 @@ export default function AdminDashboard() {
           return;
         }
 
-        setRole('admin');
+        setUserRole('admin');
+        await fetchAdminData();
         confetti({
           particleCount: 40,
           spread: 60,
@@ -143,12 +152,25 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleSyncData = async () => {
+    setSyncing(true);
+    await fetchAdminData();
+    setSyncing(false);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-pink-50/20 flex items-center justify-center">
+        <div className="w-12 h-12 rounded-full border-4 border-primary-200 border-t-primary-500 animate-spin" />
+      </div>
+    );
+  }
+
   // IF USER IS NOT ADMIN, RENDER SECURITY GATE PORTAL
   if (userRole !== 'admin') {
     return (
       <div className="min-h-screen flex flex-col bg-[#fff8f9]">
-                <Navbar />
-        
+        <Navbar />
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="bg-white border border-primary-150 p-6 sm:p-8 rounded-3xl max-w-md w-full shadow-lg flex flex-col gap-5 text-center relative overflow-hidden">
             <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-purple-500 via-primary-500 to-pink-400" />
@@ -206,7 +228,6 @@ export default function AdminDashboard() {
                 )}
               </button>
             </form>
-
           </div>
         </div>
         <Footer />
@@ -215,22 +236,16 @@ export default function AdminDashboard() {
   }
 
   // CALCULATE ADMIN METRICS DYNAMICALLY
-  const activeOrders = orders.filter(o => o.status !== 'cancelled');
-  const totalRevenue = activeOrders.reduce((sum, o) => sum + o.total_amount, 0);
-  const totalOrdersCount = orders.length;
+  const activeOrders = orders.filter(o => o.status !== 'cancelled' && o.payment_status === 'paid');
+  const totalRevenue = activeOrders.reduce((sum, o) => sum + Number(o.total_amount), 0);
+  const totalOrdersCount = activeOrders.length;
   
   // Low stock products
-  const lowStockProducts = products.filter(p => p.stock_quantity <= 4 && !p.is_deleted);
-  const outOfStockProducts = products.filter(p => p.stock_quantity === 0 && !p.is_deleted);
+  const lowStockProducts = products.filter(p => p.stock_quantity <= 4);
+  const outOfStockProducts = products.filter(p => p.stock_quantity === 0);
 
-  // Top selling products based on order logs
-  const topSellers = [...products]
-    .filter(p => !p.is_deleted)
-    .sort((a, b) => b.stock_quantity - a.stock_quantity) // simple sort by inverse inventory for demonstration
-    .slice(0, 5);
-
-  // Recent 5 orders
-  const recentOrders = orders.slice(0, 5);
+  // Recent 5 orders (only paid)
+  const recentOrders = orders.filter(o => o.payment_status === 'paid').slice(0, 5);
 
   // Dynamic Revenue Chart Data grouped by Month of creation
   const getRevenueChartData = () => {
@@ -245,14 +260,12 @@ export default function AdminDashboard() {
     }
 
     // Populate actual sales
-    orders.forEach(o => {
-      if (o.status !== 'cancelled') {
-        const orderDate = new Date(o.created_at);
-        const orderMonthIdx = orderDate.getMonth();
-        const chartMonth = last5Months.find(m => m.index === orderMonthIdx);
-        if (chartMonth) {
-          chartMonth.Sales += o.total_amount;
-        }
+    activeOrders.forEach(o => {
+      const orderDate = new Date(o.created_at);
+      const orderMonthIdx = orderDate.getMonth();
+      const chartMonth = last5Months.find(m => m.index === orderMonthIdx);
+      if (chartMonth) {
+        chartMonth.Sales += Number(o.total_amount);
       }
     });
 
@@ -280,52 +293,50 @@ export default function AdminDashboard() {
 
   const customerChartData = getCustomerChartData();
 
+  const parseAddress = (addressData: any) => {
+    if (!addressData) return { fullName: 'Unknown' };
+    if (typeof addressData === 'string') {
+      try {
+        return JSON.parse(addressData);
+      } catch (e) {
+        return { fullName: addressData };
+      }
+    }
+    return addressData;
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-[#fff8f9]/15">
-            <Navbar />
+      <Navbar />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10">
         
         {/* Header */}
         <div className="flex justify-between items-center mb-10 mt-8">
-        <div>
-          <h1 className="text-3xl font-serif text-slate-800 flex items-center gap-3">
-            <ShieldCheck className="text-fuchsia-600 w-8 h-8" />
-            Royal Admin Command Center
-          </h1>
-          <p className="text-slate-500 mt-2">Real-time metrics, warehouse inventory adjustments, coupon limits, and customer insights.</p>
+          <div>
+            <h1 className="text-3xl font-serif text-slate-800 flex items-center gap-3">
+              <ShieldCheck className="text-fuchsia-600 w-8 h-8" />
+              Royal Admin Command Center
+            </h1>
+            <p className="text-slate-500 mt-2">Real-time metrics, warehouse inventory adjustments, coupon limits, and customer insights.</p>
+          </div>
+          <div className="flex gap-4">
+            <button 
+              onClick={handleSyncData}
+              disabled={syncing}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-full font-medium transition-all shadow-md shadow-indigo-200 flex items-center gap-2 disabled:opacity-70"
+            >
+              <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} /> 
+              {syncing ? 'Syncing...' : 'Sync Data'}
+            </button>
+            <Link 
+              href="/"
+              className="bg-gradient-to-r from-fuchsia-500 to-pink-500 hover:from-fuchsia-600 hover:to-pink-600 text-white px-6 py-3 rounded-full font-medium transition-all shadow-md shadow-pink-200 flex items-center gap-2"
+            >
+              <LayoutDashboard className="w-4 h-4" /> View Storefront
+            </Link>
+          </div>
         </div>
-        <div className="flex gap-4">
-          <button 
-            onClick={() => {
-              if (activeUser) {
-                fetchUserDataFromSupabase(activeUser.id);
-                fetchCatalogFromSupabase();
-              } else {
-                // Force a background login if activeUser is missing
-                supabase.auth.signInWithPassword({
-                  email: 'admin@princess.com',
-                  password: 'adminpc',
-                }).then(({ data }) => {
-                  if (data.session?.user) {
-                    fetchUserDataFromSupabase(data.session.user.id);
-                    fetchCatalogFromSupabase();
-                  }
-                });
-              }
-            }}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-full font-medium transition-all shadow-md shadow-indigo-200 flex items-center gap-2"
-          >
-            <RefreshCw className="w-4 h-4" /> Sync Data
-          </button>
-          <Link 
-            href="/"
-            className="bg-gradient-to-r from-fuchsia-500 to-pink-500 hover:from-fuchsia-600 hover:to-pink-600 text-white px-6 py-3 rounded-full font-medium transition-all shadow-md shadow-pink-200 flex items-center gap-2"
-          >
-            <LayoutDashboard className="w-4 h-4" /> View Storefront
-          </Link>
-        </div>
-      </div>
 
         {/* METRIC KANBAN CARDS */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -343,7 +354,7 @@ export default function AdminDashboard() {
               </h2>
               <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5 mt-1">
                 <TrendingUp className="w-3 h-3" />
-                {orders.length > 0 ? '+18.4% monthly trend' : 'No sales logs'}
+                {activeOrders.length > 0 ? '+18.4% monthly trend' : 'No sales logs'}
               </span>
             </div>
           </div>
@@ -351,7 +362,7 @@ export default function AdminDashboard() {
           {/* Card 2: Orders Count */}
           <div className="bg-white border border-primary-100 rounded-3xl p-5 shadow-2xs flex flex-col justify-between group">
             <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest">Active Orders</span>
+              <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest">Paid Orders</span>
               <div className="w-8 h-8 rounded-full bg-primary-50 text-primary-500 flex items-center justify-center">
                 <ShoppingBag className="w-4 h-4" />
               </div>
@@ -362,7 +373,7 @@ export default function AdminDashboard() {
               </h2>
               <span className="text-[10px] text-primary-500 font-bold flex items-center gap-0.5 mt-1">
                 <TrendingUp className="w-3 h-3" />
-                {orders.length > 0 ? '+4.2% daily trend' : 'Awaiting orders'}
+                {activeOrders.length > 0 ? '+4.2% daily trend' : 'Awaiting orders'}
               </span>
             </div>
           </div>
@@ -463,14 +474,14 @@ export default function AdminDashboard() {
 
         </div>
 
-        {/* BOTTOM SECTION: RECENT ORDERS & TOP PRODUCTS */}
+        {/* BOTTOM SECTION: RECENT ORDERS */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
           {/* Recent Orders List */}
-          <div className="lg:col-span-2 bg-white border border-primary-100 rounded-3xl p-5 shadow-2xs">
+          <div className="lg:col-span-3 bg-white border border-primary-100 rounded-3xl p-5 shadow-2xs">
             <div className="flex items-center justify-between border-b border-primary-50 pb-3 mb-4">
               <h3 className="font-serif text-sm font-bold text-primary-950 uppercase tracking-widest">
-                Recent Princess Sales
+                Recent Paid Princess Sales
               </h3>
               <Link href="/admin/orders" className="text-[10px] text-primary-600 hover:underline font-bold flex items-center gap-0.5">
                 Manage Orders
@@ -482,79 +493,42 @@ export default function AdminDashboard() {
               <div className="text-center py-10 text-xs text-muted-foreground">No recent sales yet.</div>
             ) : (
               <div className="flex flex-col gap-3">
-                {recentOrders.map((ord) => (
-                  <div
-                    key={ord.id}
-                    className="border border-primary-100 rounded-2xl p-3 bg-[#fff8f9]/5 flex items-center justify-between gap-3 text-xs"
-                  >
-                    <div>
-                      <span className="font-bold text-primary-950 block">{ord.shipping_address.fullName}</span>
-                      <span className="text-[9px] text-muted-foreground block">{ord.user_email}</span>
-                      <span className="text-[9px] font-mono text-primary-600 font-semibold block mt-0.5">
-                        {ord.order_number} ({new Date(ord.created_at).toLocaleDateString()})
-                      </span>
-                    </div>
+                {recentOrders.map((ord) => {
+                  const addr = parseAddress(ord.shipping_address);
+                  return (
+                    <div
+                      key={ord.id}
+                      className="border border-primary-100 rounded-2xl p-3 bg-[#fff8f9]/5 flex items-center justify-between gap-3 text-xs"
+                    >
+                      <div>
+                        <span className="font-bold text-primary-950 block">{addr.fullName}</span>
+                        <span className="text-[9px] text-muted-foreground block">{ord.user_email || 'Unknown Email'}</span>
+                        <span className="text-[9px] font-mono text-primary-600 font-semibold block mt-0.5">
+                          {ord.order_number} ({new Date(ord.created_at).toLocaleDateString()})
+                        </span>
+                      </div>
 
-                    <div className="flex items-center gap-3">
-                      <span className={`px-2 py-0.5 rounded-full font-bold text-[8px] uppercase tracking-wider ${
-                        ord.status === 'delivered'
-                          ? 'bg-emerald-50 text-emerald-700'
-                          : ord.status === 'cancelled'
-                          ? 'bg-neutral-100 text-neutral-600'
-                          : 'bg-amber-50 text-amber-700'
-                      }`}>
-                        {ord.status}
-                      </span>
-                      <span className="font-bold text-primary-950">₹{ord.total_amount.toFixed(2)}</span>
+                      <div className="flex items-center gap-3">
+                        <span className={`px-2 py-0.5 rounded-full font-bold text-[8px] uppercase tracking-wider ${
+                          ord.status === 'delivered' ? 'bg-emerald-100 text-emerald-700' :
+                          ord.status === 'processing' ? 'bg-amber-100 text-amber-700' :
+                          'bg-blue-100 text-blue-700'
+                        }`}>
+                          {ord.status}
+                        </span>
+                        <span className="font-serif font-black text-primary-950 text-sm">
+                          ₹{Number(ord.total_amount).toFixed(2)}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
-
-          {/* Top Selling Products / Stock List */}
-          <div className="lg:col-span-1 bg-white border border-primary-100 rounded-3xl p-5 shadow-2xs">
-            <div className="flex items-center justify-between border-b border-primary-50 pb-3 mb-4">
-              <h3 className="font-serif text-sm font-bold text-primary-950 uppercase tracking-widest">
-                Princess Stock Ledger
-              </h3>
-              <Link href="/admin/products" className="text-[10px] text-primary-600 hover:underline font-bold">
-                Adjust
-              </Link>
-            </div>
-
-            <div className="flex flex-col gap-3.5">
-              {topSellers.map((prod) => (
-                <div key={prod.id} className="flex items-center gap-3 justify-between text-xs">
-                  <div className="flex items-center gap-2 max-w-[170px]">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={prod.images[0]}
-                      alt={prod.title}
-                      className="w-8 h-8 rounded-md object-cover border border-primary-50 shrink-0"
-                    />
-                    <span className="font-bold text-primary-900 block truncate">{prod.title}</span>
-                  </div>
-
-                  <span className={`px-2 py-0.5 rounded-md font-bold text-[9px] uppercase ${
-                    prod.stock_quantity === 0
-                      ? 'bg-neutral-100 text-neutral-500'
-                      : prod.stock_quantity <= 4
-                      ? 'bg-rose-50 text-rose-600 animate-pulse'
-                      : 'bg-primary-50 text-primary-700'
-                  }`}>
-                    {prod.stock_quantity === 0 ? 'Out' : `${prod.stock_quantity} left`}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
         </div>
 
       </main>
-
       <Footer />
     </div>
   );

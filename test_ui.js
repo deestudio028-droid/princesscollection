@@ -21,43 +21,38 @@ const puppeteer = require('puppeteer');
     console.log('REQUEST FAILED:', request.url(), request.failure().errorText);
   });
 
-  console.log("Navigating to https://princesscollection.it.com/admin ...");
+  console.log("Navigating to https://princesscollection.it.com/ ...");
+  await page.goto('https://princesscollection.it.com/', { waitUntil: 'networkidle2' });
+  
+  const storefrontText = await page.evaluate(() => document.body.innerText);
+  console.log("Does storefront have products?:", storefrontText.includes('₹'));
+
+  console.log("Navigating to admin...");
   await page.goto('https://princesscollection.it.com/admin', { waitUntil: 'networkidle2' });
   
-  console.log("Waiting for form...");
   await page.waitForSelector('input[type="email"]');
-  
-  console.log("Filling form...");
   await page.type('input[type="email"]', 'admin@princess.com');
   await page.type('input[type="password"]', 'adminpc');
-  
-  console.log("Submitting...");
   await page.click('button[type="submit"]');
 
-  console.log("Waiting for 10 seconds to allow data to load...");
-  await new Promise(r => setTimeout(r, 10000));
+  await new Promise(r => setTimeout(r, 5000));
   
-  let text = await page.evaluate(() => document.body.innerText);
-  let match = text.match(/ACTIVE ORDERS\n?(\d+)\s*orders/);
-  console.log("Extracted Active Orders (After Login):", match ? match[1] : 'Not Found');
+  const text = await page.evaluate(() => document.body.innerText);
+  const match = text.match(/ACTIVE ORDERS\n?(\d+)\s*orders/);
+  console.log("Extracted Active Orders:", match ? match[1] : 'Not Found');
 
-  const ls = await page.evaluate(() => {
-    return Object.keys(localStorage).filter(k => k.includes('supabase'));
+  console.log("Clicking Sync Data button...");
+  await page.evaluate(() => {
+    const btns = Array.from(document.querySelectorAll('button'));
+    const syncBtn = btns.find(b => b.innerText.includes('Sync Data'));
+    if (syncBtn) syncBtn.click();
   });
-  console.log("Supabase localStorage keys after login:", ls);
 
-  console.log("Refreshing the page...");
-  await page.reload({ waitUntil: 'networkidle2' });
+  await new Promise(r => setTimeout(r, 5000));
 
-  console.log("Waiting for 10 seconds to allow data to load...");
-  await new Promise(r => setTimeout(r, 10000));
-
-  text = await page.evaluate(() => document.body.innerText);
-  match = text.match(/ACTIVE ORDERS\n?(\d+)\s*orders/);
-  console.log("Extracted Active Orders (After Refresh):", match ? match[1] : 'Not Found');
-  if (!match) {
-    console.log("Full page text after refresh:\n", text);
-  }
+  const textAfterSync = await page.evaluate(() => document.body.innerText);
+  const matchAfterSync = textAfterSync.match(/ACTIVE ORDERS\n?(\d+)\s*orders/);
+  console.log("Extracted Active Orders (After Sync):", matchAfterSync ? matchAfterSync[1] : 'Not Found');
 
   await browser.close();
 })();
