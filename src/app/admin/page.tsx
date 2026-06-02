@@ -66,9 +66,20 @@ export default function AdminDashboard() {
   useEffect(() => {
     let isMounted = true;
 
+    // Safety fallback: Never show spinner for more than 3 seconds
+    const fallbackTimer = setTimeout(() => {
+      if (isMounted && isLoading) {
+        setIsLoading(false);
+      }
+    }, 3000);
+
     const init = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        // Use Promise.race to prevent getSession from hanging due to localStorage locks
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise<any>((_, reject) => setTimeout(() => reject(new Error("Timeout")), 2000));
+        const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
+        
         if (session?.user) {
           const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
           if (profile?.role === 'admin') {
@@ -90,18 +101,20 @@ export default function AdminDashboard() {
       if (session?.user) {
         const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
         if (profile?.role === 'admin') {
-          setUserRole('admin');
+          if (isMounted) setUserRole('admin');
           await fetchAdminData();
         } else {
-          setUserRole('guest');
+          if (isMounted) setUserRole('guest');
         }
       } else {
-        setUserRole('guest');
+        if (isMounted) setUserRole('guest');
       }
+      if (isMounted) setIsLoading(false);
     });
 
     return () => {
       isMounted = false;
+      clearTimeout(fallbackTimer);
       subscription.unsubscribe();
     };
   }, []);
