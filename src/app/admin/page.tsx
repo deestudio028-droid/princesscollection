@@ -4,7 +4,8 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import { createClient } from '@supabase/supabase-js';
+import { useStore } from '@/lib/store';
+import { supabase } from '@/lib/supabase';
 import { 
   DollarSign, 
   ShoppingBag, 
@@ -29,19 +30,7 @@ import {
 } from 'recharts';
 import confetti from 'canvas-confetti';
 
-// Create a dedicated, memory-only Supabase client for the Admin Dashboard.
-// This COMPLETELY bypasses localStorage, which fixes the "Timeout" and hanging issues
-// caused by corrupted browser session locks. 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-const adminSupabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: false, // DO NOT use localStorage
-    autoRefreshToken: false,
-    detectSessionInUrl: false
-  }
-});
+// (adminSupabase removed to rely on global auth state so subpages can access the token)
 
 export default function AdminDashboard() {
   const [products, setProducts] = useState<any[]>([]);
@@ -64,9 +53,9 @@ export default function AdminDashboard() {
         { data: ordersData },
         { data: profilesData }
       ] = await Promise.all([
-        adminSupabase.from('products').select('*').eq('is_deleted', false),
-        adminSupabase.from('orders').select('*').order('created_at', { ascending: false }),
-        adminSupabase.from('profiles').select('*')
+        supabase.from('products').select('*').eq('is_deleted', false),
+        supabase.from('orders').select('*').order('created_at', { ascending: false }),
+        supabase.from('profiles').select('*')
       ]);
 
       setProducts(productsData || []);
@@ -86,7 +75,19 @@ export default function AdminDashboard() {
     setLoginLoading(true);
 
     try {
-      const { data, error } = await adminSupabase.auth.signInWithPassword({
+      // Force clear any stuck locks or corrupted sessions before trying to log in
+      if (typeof window !== 'undefined') {
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('sb-')) {
+            localStorage.removeItem(key);
+          }
+        });
+      }
+
+      // We use the GLOBAL supabase client here so that the session is saved
+      // to localStorage. This allows the Zustand store.ts in subpages
+      // (like /admin/products) to recognize the admin session!
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: emailInput,
         password: passwordInput,
       });
@@ -98,20 +99,21 @@ export default function AdminDashboard() {
       }
 
       if (data.user) {
-        const { data: profile, error: profileErr } = await adminSupabase
+        const { data: profile, error: profileErr } = await supabase
           .from('profiles')
           .select('role')
           .eq('id', data.user.id)
           .single();
 
         if (profileErr || !profile || profile.role !== 'admin') {
-          await adminSupabase.auth.signOut();
+          await supabase.auth.signOut();
           setLoginError('Access Denied: You do not have admin privileges.');
           setLoginLoading(false);
           return;
         }
 
         setUserRole('admin');
+        useStore.getState().setRole('admin'); // Sync with global store for subpages!
         await fetchAdminData();
         confetti({
           particleCount: 40,
