@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useStore, Product } from '@/lib/store';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -9,15 +10,22 @@ import ProductCard from '@/components/ProductCard';
 import { Sparkles, ArrowRight, Heart, Gift, ShieldCheck, HeartHandshake } from 'lucide-react';
 
 export default function Home() {
-  const { products, categories, wishlist, toggleWishlist, hydrate, socialFeed } = useStore();
+  const { products, categories, wishlist, toggleWishlist, hydrate, socialFeed, activeUser } = useStore();
   const [mounted, setMounted] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     hydrate();
     setMounted(true);
   }, [hydrate]);
 
-  if (!mounted) {
+  useEffect(() => {
+    if (mounted && !activeUser) {
+      router.push('/profile');
+    }
+  }, [mounted, activeUser, router]);
+
+  if (!mounted || !activeUser) {
     return (
       <div className="min-h-screen bg-pink-50/20 flex items-center justify-center">
         <div className="w-12 h-12 rounded-full border-4 border-primary-200 border-t-primary-500 animate-spin" />

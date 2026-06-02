@@ -127,7 +127,7 @@ function ShopContent() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           
           {/* LEFT SIDEBAR: FILTERS */}
-          <div className="lg:col-span-1 bg-linear-to-b from-primary-50/50 via-pastel-lavender/10 to-primary-50/30 border border-primary-200/50 rounded-3xl p-6 h-fit sticky top-24 shadow-2xs">
+          <div className="lg:col-span-1 bg-linear-to-b from-primary-50/50 via-pastel-lavender/10 to-primary-50/30 border border-primary-200/50 rounded-3xl p-6 h-fit lg:sticky lg:top-24 shadow-2xs">
             <div className="flex items-center justify-between border-b border-primary-100 pb-4 mb-5">
               <span className="font-serif font-bold text-primary-900 flex items-center gap-1.5 text-sm uppercase tracking-wide">
                 <SlidersHorizontal className="w-4 h-4 text-primary-500" />

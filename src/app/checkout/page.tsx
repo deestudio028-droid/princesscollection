@@ -132,7 +132,7 @@ function CheckoutContent() {
   const [notes, setNotes] = useState('');
   
   // Selections
-  const [paymentMethod, setPaymentMethod] = useState<'phonepe' | 'razorpay'>('phonepe');
+  const [paymentMethod, setPaymentMethod] = useState<'phonepe'>('phonepe');
   
   // Checkout Statuses
   const [placingOrder, setPlacingOrder] = useState(false);
@@ -516,42 +516,11 @@ function CheckoutContent() {
                       <span className="text-[9px] text-muted-foreground mt-0.5">UPI, QR Code, Credit/Debit Cards, Netbanking (Real Gateway)</span>
                     </div>
                   </div>
-
-                  {/* Razorpay Select */}
-                  <div
-                    onClick={() => setPaymentMethod('razorpay')}
-                    className={`border rounded-2xl p-4 flex items-center gap-3 select-none cursor-pointer transition-all ${
-                      paymentMethod === 'razorpay'
-                        ? 'border-primary-500 bg-primary-50/30 font-bold shadow-2xs'
-                        : 'border-primary-150 hover:bg-primary-50/10'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="payment_method"
-                      checked={paymentMethod === 'razorpay'}
-                      onChange={() => setPaymentMethod('razorpay')}
-                      className="accent-primary-500 cursor-pointer"
-                    />
-                    <div className="flex flex-col">
-                      <span className="text-xs text-primary-900 flex items-center gap-1">
-                        <CreditCard className="w-3.5 h-3.5 text-primary-500" />
-                        Razorpay Secure Card
-                      </span>
-                      <span className="text-[9px] text-muted-foreground mt-0.5">Credit/Debit Cards, UPI, Netbanking (Sandbox Simulator)</span>
-                    </div>
-                  </div>
                 </div>
 
                 {paymentMethod === 'phonepe' && (
                   <div className="border border-dashed border-primary-200 bg-primary-50/20 p-3.5 rounded-2xl text-[10px] text-primary-800 leading-relaxed font-medium">
                     ⚡ <b>PhonePe Gateway Active:</b> You will be securely redirected to PhonePe Merchant Payment Page to complete the transaction.
-                  </div>
-                )}
-
-                {paymentMethod === 'razorpay' && (
-                  <div className="border border-dashed border-primary-200 bg-primary-50/20 p-3.5 rounded-2xl text-[10px] text-primary-800 leading-relaxed font-medium">
-                    💎 <b>Razorpay Sandbox Ready:</b> Safe credit card transaction simulator is active. Upon placing this order, a secure merchant callback is automatically triggered to confirm the transaction.
                   </div>
                 )}
               </div>
