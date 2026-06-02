@@ -33,13 +33,28 @@ import confetti from 'canvas-confetti';
 // (adminSupabase removed to rely on global auth state so subpages can access the token)
 
 export default function AdminDashboard() {
+  const { hydrate, userRole: globalUserRole } = useStore();
   const [products, setProducts] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   
   const [userRole, setUserRole] = useState<'guest' | 'customer' | 'admin'>('guest');
-  const [isLoading, setIsLoading] = useState(false); // Start false since we require manual login
+  const [isLoading, setIsLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+
+  // Automatically check if user is already logged in via the global store hydration!
+  useEffect(() => {
+    hydrate();
+  }, [hydrate]);
+
+  useEffect(() => {
+    if (globalUserRole === 'admin') {
+      setUserRole('admin');
+      fetchAdminData();
+    } else if (globalUserRole === 'guest') {
+      setUserRole('guest');
+    }
+  }, [globalUserRole]);
 
   const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
