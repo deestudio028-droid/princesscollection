@@ -41,18 +41,35 @@ export default function AdminCategories() {
     }
   };
 
-  const processFile = (file: File) => {
+  const processFile = async (file: File) => {
     if (!file.type.startsWith('image/')) {
       alert('Please upload an image file!');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (event.target?.result) {
-        setImageUrl(event.target.result as string);
-      }
-    };
-    reader.readAsDataURL(file);
+    
+    // Compress image to prevent Supabase payload size limits
+    const bitmap = await createImageBitmap(file);
+    const canvas = document.createElement('canvas');
+    let width = bitmap.width;
+    let height = bitmap.height;
+    const max_size = 800; // max width/height
+
+    if (width > height && width > max_size) {
+      height *= max_size / width;
+      width = max_size;
+    } else if (height > max_size) {
+      width *= max_size / height;
+      height = max_size;
+    }
+
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx?.drawImage(bitmap, 0, 0, width, height);
+    
+    // Compress to 70% quality JPEG
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+    setImageUrl(dataUrl);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -104,11 +121,11 @@ export default function AdminCategories() {
     setShowAddModal(true);
   };
 
-  const handleAddSubmit = (e: React.FormEvent) => {
+  const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name) return;
 
-    addCategory({
+    await addCategory({
       name,
       description,
       image_url: imageUrl || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=500'

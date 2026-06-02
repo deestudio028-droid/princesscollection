@@ -71,13 +71,29 @@ export default function AdminProducts() {
   const processFiles = async (files: File[]) => {
     const validImageFiles = files.filter(file => file.type.startsWith('image/'));
     
-    const newImagesPromises = validImageFiles.map(file => {
-      return new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = (err) => reject(err);
-      });
+    const newImagesPromises = validImageFiles.map(async file => {
+      // Compress image to prevent Supabase payload size limits
+      const bitmap = await createImageBitmap(file);
+      const canvas = document.createElement('canvas');
+      let width = bitmap.width;
+      let height = bitmap.height;
+      const max_size = 800; // max width/height
+
+      if (width > height && width > max_size) {
+        height *= max_size / width;
+        width = max_size;
+      } else if (height > max_size) {
+        width *= max_size / height;
+        height = max_size;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(bitmap, 0, 0, width, height);
+      
+      // Compress to 70% quality JPEG
+      return canvas.toDataURL('image/jpeg', 0.7);
     });
 
     try {
@@ -154,13 +170,13 @@ export default function AdminProducts() {
     setShowAddModal(true);
   };
 
-  const handleAddSubmit = (e: React.FormEvent) => {
+  const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !price || !stockQuantity) return;
 
     const tags = tagsInput.split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0);
 
-    addProduct({
+    await addProduct({
       title,
       slug: '',
       description,

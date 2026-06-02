@@ -129,7 +129,7 @@ export default function AdminDashboard() {
 
         setUserRole('admin');
         useStore.getState().setRole('admin'); // Sync with global store for subpages!
-        await fetchAdminData();
+        fetchAdminData(); // Intentionally NOT awaited to speed up login redirect
         confetti({
           particleCount: 40,
           spread: 60,
