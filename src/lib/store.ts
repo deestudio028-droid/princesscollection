@@ -310,24 +310,20 @@ export const useStore = create<DashboardStore>((set, get) => {
     // DATABASE CATALOG FETCH
     fetchCatalogFromSupabase: async () => {
       try {
-        // 1. Fetch Categories
-        const { data: cats } = await supabase
-          .from('categories')
-          .select('*')
-          .order('name', { ascending: true });
-        if (cats) {
-          set({ categories: cats });
+        const [catsRes, prodsRes, revsRes, coupsRes, _socialRes] = await Promise.all([
+          supabase.from('categories').select('*').order('name', { ascending: true }),
+          supabase.from('products').select('*, product_images(image_url)').eq('is_deleted', false).order('created_at', { ascending: false }),
+          supabase.from('reviews').select('*').order('created_at', { ascending: false }),
+          supabase.from('coupons').select('*'),
+          get().fetchSocialFeedFromSupabase()
+        ]);
+
+        if (catsRes.data) {
+          set({ categories: catsRes.data });
         }
 
-        // 2. Fetch Products and join images
-        const { data: prods } = await supabase
-          .from('products')
-          .select('*, product_images(image_url)')
-          .eq('is_deleted', false)
-          .order('created_at', { ascending: false });
-
-        if (prods) {
-          const formattedProducts = prods.map((p: any) => ({
+        if (prodsRes.data) {
+          const formattedProducts = prodsRes.data.map((p: any) => ({
             id: p.id,
             title: p.title,
             slug: p.slug,
@@ -347,21 +343,12 @@ export const useStore = create<DashboardStore>((set, get) => {
           set({ products: formattedProducts });
         }
 
-        // 3. Fetch Reviews
-        const { data: revs } = await supabase
-          .from('reviews')
-          .select('*')
-          .order('created_at', { ascending: false });
-        if (revs) {
-          set({ reviews: revs });
+        if (revsRes.data) {
+          set({ reviews: revsRes.data });
         }
 
-        // 4. Fetch Coupons
-        const { data: coups } = await supabase
-          .from('coupons')
-          .select('*');
-        if (coups) {
-          const formattedCoupons = coups.map((c: any) => ({
+        if (coupsRes.data) {
+          const formattedCoupons = coupsRes.data.map((c: any) => ({
             id: c.id,
             code: c.code,
             discount_type: c.discount_type,
@@ -376,8 +363,6 @@ export const useStore = create<DashboardStore>((set, get) => {
           set({ coupons: formattedCoupons });
         }
 
-        // 5. Fetch Social Feed
-        await get().fetchSocialFeedFromSupabase();
       } catch (err) {
         console.error("Error fetching catalog from Supabase:", err);
       }
