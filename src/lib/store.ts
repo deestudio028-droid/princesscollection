@@ -492,7 +492,7 @@ export const useStore = create<DashboardStore>((set, get) => {
           .from('products')
           .insert({
             title: p.title,
-            slug,
+            slug: p.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
             description: p.description,
             price: p.price,
             discount_price: p.discount_price || null,
@@ -534,7 +534,26 @@ export const useStore = create<DashboardStore>((set, get) => {
           });
         }
 
-        await get().fetchCatalogFromSupabase();
+        // Optimistic update
+        set(state => ({
+          products: [{
+            id: productId,
+            title: p.title,
+            slug: insertedProduct.slug,
+            description: p.description || '',
+            price: Number(p.price),
+            discount_price: p.discount_price ? Number(p.discount_price) : undefined,
+            stock_quantity: Number(p.stock_quantity),
+            category_id: p.category_id || '',
+            tags: p.tags || [],
+            is_featured: !!p.is_featured,
+            is_bestseller: !!p.is_bestseller,
+            is_deleted: false,
+            images: p.images || [],
+            created_at: insertedProduct.created_at,
+            updated_at: insertedProduct.updated_at
+          }, ...state.products]
+        }));
       } catch (err: any) {
         console.error("addProduct error:", err);
         alert("addProduct Exception: " + (err?.message || JSON.stringify(err)));
@@ -593,7 +612,19 @@ export const useStore = create<DashboardStore>((set, get) => {
           });
         }
 
-        await get().fetchCatalogFromSupabase();
+        // Optimistic update
+        set(state => ({
+          products: state.products.map(p => {
+            if (p.id === id) {
+              return {
+                ...p,
+                ...updatedFields,
+                images: updatedFields.images !== undefined ? updatedFields.images : p.images
+              };
+            }
+            return p;
+          })
+        }));
       } catch (err: any) {
         console.error("updateProduct error:", err);
         alert("updateProduct Exception: " + (err?.message || JSON.stringify(err)));
@@ -610,7 +641,10 @@ export const useStore = create<DashboardStore>((set, get) => {
           console.error("Error soft deleting product:", error);
           alert("Failed to delete product: " + error.message);
         }
-        await get().fetchCatalogFromSupabase();
+        // Optimistic update
+        set(state => ({
+          products: state.products.filter(p => p.id !== id)
+        }));
       } catch (err: any) {
         console.error("deleteProduct error:", err);
         alert("deleteProduct Exception: " + (err?.message || JSON.stringify(err)));
@@ -621,19 +655,22 @@ export const useStore = create<DashboardStore>((set, get) => {
     addCategory: async (cat) => {
       try {
         const slug = cat.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('categories')
           .insert({
             name: cat.name,
             slug,
             description: cat.description,
             image_url: cat.image_url
-          });
+          })
+          .select()
+          .single();
         if (error) {
           console.error("Error adding category:", error);
           alert("Failed to add category: " + error.message);
+        } else if (data) {
+          set(state => ({ categories: [...state.categories, data].sort((a, b) => a.name.localeCompare(b.name)) }));
         }
-        await get().fetchCatalogFromSupabase();
       } catch (err: any) {
         console.error("addCategory error:", err);
         alert("addCategory Exception: " + (err?.message || JSON.stringify(err)));
@@ -654,7 +691,10 @@ export const useStore = create<DashboardStore>((set, get) => {
           console.error("Error updating category:", error);
           alert("Failed to update category: " + error.message);
         }
-        await get().fetchCatalogFromSupabase();
+        // Optimistic update
+        set(state => ({
+          categories: state.categories.map(c => c.id === id ? { ...c, ...updatedFields } : c)
+        }));
       } catch (err: any) {
         console.error("updateCategory error:", err);
         alert("updateCategory Exception: " + (err?.message || JSON.stringify(err)));
@@ -671,7 +711,10 @@ export const useStore = create<DashboardStore>((set, get) => {
           console.error("Error deleting category:", error);
           alert("Failed to delete category: " + error.message);
         }
-        await get().fetchCatalogFromSupabase();
+        // Optimistic update
+        set(state => ({
+          categories: state.categories.filter(c => c.id !== id)
+        }));
       } catch (err: any) {
         console.error("deleteCategory error:", err);
         alert("deleteCategory Exception: " + (err?.message || JSON.stringify(err)));
@@ -808,7 +851,7 @@ export const useStore = create<DashboardStore>((set, get) => {
     // COUPONS
     addCoupon: async (c) => {
       try {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('coupons')
           .insert({
             code: c.code,
@@ -818,9 +861,26 @@ export const useStore = create<DashboardStore>((set, get) => {
             usage_limit: c.usage_limit || null,
             min_purchase_amount: c.min_purchase_amount || 0,
             is_active: c.is_active
-          });
+          })
+          .select()
+          .single();
         if (error) console.error("Error adding coupon:", error);
-        await get().fetchCatalogFromSupabase();
+        else if (data) {
+          set(state => ({
+            coupons: [...state.coupons, {
+              id: data.id,
+              code: data.code,
+              discount_type: data.discount_type,
+              discount_value: Number(data.discount_value),
+              expiry_date: data.expiry_date,
+              usage_limit: data.usage_limit,
+              used_count: Number(data.used_count || 0),
+              min_purchase_amount: Number(data.min_purchase_amount || 0),
+              is_active: !!data.is_active,
+              created_at: data.created_at
+            }]
+          }));
+        }
       } catch (err) {
         console.error("addCoupon error:", err);
       }
@@ -835,7 +895,11 @@ export const useStore = create<DashboardStore>((set, get) => {
           .update({ is_active: !coupon.is_active })
           .eq('id', id);
         if (error) console.error("Error toggling coupon:", error);
-        await get().fetchCatalogFromSupabase();
+        else {
+          set(state => ({
+            coupons: state.coupons.map(c => c.id === id ? { ...c, is_active: !coupon.is_active } : c)
+          }));
+        }
       } catch (err) {
         console.error("toggleCoupon error:", err);
       }
@@ -848,7 +912,11 @@ export const useStore = create<DashboardStore>((set, get) => {
           .delete()
           .eq('id', id);
         if (error) console.error("Error deleting coupon:", error);
-        await get().fetchCatalogFromSupabase();
+        else {
+          set(state => ({
+            coupons: state.coupons.filter(c => c.id !== id)
+          }));
+        }
       } catch (err) {
         console.error("deleteCoupon error:", err);
       }
