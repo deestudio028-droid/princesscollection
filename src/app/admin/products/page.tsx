@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useStore } from '@/lib/store';
 import { Plus, Edit2, Trash2, X, Upload } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { uploadImageToSupabase } from '@/lib/uploadImage';
 
 export default function AdminProducts() {
   const { products, categories, addProduct, updateProduct, deleteProduct, hydrate } = useStore();
@@ -52,7 +53,18 @@ export default function AdminProducts() {
       canvas.height = height;
       const ctx = canvas.getContext('2d');
       ctx?.drawImage(bitmap, 0, 0, width, height);
-      return canvas.toDataURL('image/jpeg', 0.7);
+      
+      return new Promise<string>((resolve, reject) => {
+        canvas.toBlob(async (blob) => {
+          if (!blob) return reject(new Error('Canvas is empty'));
+          try {
+            const url = await uploadImageToSupabase(blob);
+            resolve(url);
+          } catch (e) {
+            reject(e);
+          }
+        }, 'image/jpeg', 0.7);
+      });
     });
 
     try {

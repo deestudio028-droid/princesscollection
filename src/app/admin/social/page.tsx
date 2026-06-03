@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useStore, SocialPost } from '@/lib/store';
 import { Plus, Edit2, Trash2, X, Upload, Camera, Heart } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { uploadImageToSupabase } from '@/lib/uploadImage';
 
 export default function AdminSocialFeed() {
   const { socialFeed, fetchSocialFeedFromSupabase, addSocialPost, deleteSocialPost, hydrate } = useStore();
@@ -44,7 +45,18 @@ export default function AdminSocialFeed() {
     canvas.height = height;
     const ctx = canvas.getContext('2d');
     ctx?.drawImage(bitmap, 0, 0, width, height);
-    setImageUrl(canvas.toDataURL('image/jpeg', 0.7));
+    
+    canvas.toBlob(async (blob) => {
+      if (blob) {
+        try {
+          const url = await uploadImageToSupabase(blob);
+          setImageUrl(url);
+        } catch (error) {
+          console.error("Upload failed", error);
+          alert("Failed to upload image.");
+        }
+      }
+    }, 'image/jpeg', 0.7);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
