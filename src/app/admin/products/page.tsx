@@ -83,26 +83,41 @@ export default function AdminProducts() {
 
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !price || !stockQuantity || !categoryId) return;
+    console.log("[handleAddSubmit] Started. Validating fields...");
+    if (!title || !price || !stockQuantity || !categoryId) {
+      console.log("[handleAddSubmit] Validation failed. Missing required fields.");
+      return;
+    }
+    
+    console.log("[handleAddSubmit] Validation passed. Setting saving state to true.");
     setSaving(true);
 
-    await addProduct({
-      title,
-      slug: '',
-      description,
-      price: Number(price),
-      discount_price: discountPrice ? Number(discountPrice) : undefined,
-      stock_quantity: Number(stockQuantity),
-      category_id: categoryId,
-      tags: [],
-      images: imagesList.length > 0 ? imagesList : ['https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=500'],
-      is_featured: isFeatured,
-      is_bestseller: isBestseller
-    });
+    try {
+      console.log("[handleAddSubmit] Calling addProduct...");
+      const result = await addProduct({
+        title,
+        slug: '',
+        description,
+        price: Number(price),
+        discount_price: discountPrice ? Number(discountPrice) : undefined,
+        stock_quantity: Number(stockQuantity),
+        category_id: categoryId,
+        tags: [],
+        images: imagesList.length > 0 ? imagesList : ['https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=500'],
+        is_featured: isFeatured,
+        is_bestseller: isBestseller
+      });
+      console.log("[handleAddSubmit] addProduct returned. Result:", result);
 
-    setSaving(false);
-    setShowAddModal(false);
-    confetti({ particleCount: 30, spread: 50, colors: ['#a855f7', '#ec4899'] });
+      console.log("[handleAddSubmit] Closing modal and triggering confetti.");
+      setShowAddModal(false);
+      confetti({ particleCount: 30, spread: 50, colors: ['#a855f7', '#ec4899'] });
+    } catch (err) {
+      console.error("[handleAddSubmit] Caught unexpected error during addProduct:", err);
+    } finally {
+      console.log("[handleAddSubmit] Finally block reached. Resetting saving state to false.");
+      setSaving(false);
+    }
   };
 
   const openEditModal = (product: any) => {

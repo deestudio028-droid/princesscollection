@@ -487,33 +487,42 @@ export const useStore = create<DashboardStore>((set, get) => {
 
     // PRODUCT CRUD
     addProduct: async (p) => {
+      console.log("[store.addProduct] Started with payload:", p);
       try {
         const slug = p.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+        console.log("[store.addProduct] Generated slug:", slug);
+
+        const productData = {
+          title: p.title,
+          slug,
+          description: p.description,
+          price: p.price,
+          discount_price: p.discount_price,
+          stock_quantity: p.stock_quantity,
+          category_id: p.category_id || null,
+          tags: p.tags,
+          is_featured: p.is_featured,
+          is_bestseller: p.is_bestseller,
+          is_deleted: false
+        };
+
+        console.log("[store.addProduct] Sending insert request to Supabase 'products' table:", productData);
         const { data: insertedProduct, error: prodErr } = await supabase
           .from('products')
-          .insert({
-            title: p.title,
-            slug: p.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
-            description: p.description,
-            price: p.price,
-            discount_price: p.discount_price || null,
-            stock_quantity: p.stock_quantity,
-            category_id: p.category_id || null,
-            tags: p.tags,
-            is_featured: p.is_featured,
-            is_bestseller: p.is_bestseller,
-            is_deleted: false
-          })
+          .insert(productData)
           .select()
           .single();
 
+        console.log("[store.addProduct] Supabase insert response:", { insertedProduct, prodErr });
+
         if (prodErr || !insertedProduct) {
-          console.error("Error inserting product:", prodErr);
+          console.error("[store.addProduct] Error inserting product:", prodErr);
           toast.error("Failed to insert product: " + (prodErr?.message || "Verify your admin permissions."));
           return;
         }
 
         const productId = insertedProduct.id;
+        console.log("[store.addProduct] Successfully inserted product. ID:", productId);
 
         // Insert image records
         if (p.images && p.images.length > 0) {
@@ -522,22 +531,34 @@ export const useStore = create<DashboardStore>((set, get) => {
             image_url: url,
             display_order: index
           }));
+          console.log("[store.addProduct] Sending insert request to 'product_images':", imageRecords);
           const { error: imgErr } = await supabase.from('product_images').insert(imageRecords);
-          if (imgErr) console.error("Error inserting images:", imgErr);
+          console.log("[store.addProduct] 'product_images' insert response error:", imgErr);
+          if (imgErr) console.error("[store.addProduct] Error inserting images:", imgErr);
+        } else {
+          console.log("[store.addProduct] No images to insert.");
         }
 
         // Register initial stock inventory log
         if (p.stock_quantity > 0) {
-          await supabase.from('inventory_logs').insert({
+          const inventoryData = {
             product_id: productId,
             quantity_changed: p.stock_quantity,
             reason: 'restock'
-          });
+          };
+          console.log("[store.addProduct] Sending insert request to 'inventory_logs':", inventoryData);
+          const { error: logErr } = await supabase.from('inventory_logs').insert(inventoryData);
+          console.log("[store.addProduct] 'inventory_logs' insert response error:", logErr);
+          if (logErr) console.error("[store.addProduct] Error inserting log:", logErr);
+        } else {
+          console.log("[store.addProduct] Stock is 0, skipping inventory_logs insert.");
         }
 
+        console.log("[store.addProduct] Performing optimistic UI update...");
         // Optimistic update
-        set(state => ({
-          products: [{
+        set(state => {
+          console.log("[store.addProduct] Previous products count:", state.products.length);
+          const newProducts = [{
             id: productId,
             title: p.title,
             slug: insertedProduct.slug,
@@ -553,11 +574,16 @@ export const useStore = create<DashboardStore>((set, get) => {
             images: p.images || [],
             created_at: insertedProduct.created_at,
             updated_at: insertedProduct.updated_at
-          }, ...state.products]
-        }));
+          }, ...state.products];
+          console.log("[store.addProduct] New products count:", newProducts.length);
+          return { products: newProducts };
+        });
+        console.log("[store.addProduct] Optimistic UI update complete.");
+        return { success: true, id: productId };
       } catch (err: any) {
-        console.error("addProduct error:", err);
+        console.error("[store.addProduct] Caught exception:", err);
         toast.error("Error: " + (err?.message || "Failed to add product"));
+        return { success: false, error: err };
       }
     },
 
