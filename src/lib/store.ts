@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from './supabase';
+import toast from 'react-hot-toast';
 
 // =========================================================================
 // TYPES
@@ -508,7 +509,7 @@ export const useStore = create<DashboardStore>((set, get) => {
 
         if (prodErr || !insertedProduct) {
           console.error("Error inserting product:", prodErr);
-          alert("Failed to insert product: " + (prodErr?.message || "Verify your admin permissions."));
+          toast.error("Failed to insert product: " + (prodErr?.message || "Verify your admin permissions."));
           return;
         }
 
@@ -556,7 +557,7 @@ export const useStore = create<DashboardStore>((set, get) => {
         }));
       } catch (err: any) {
         console.error("addProduct error:", err);
-        alert("addProduct Exception: " + (err?.message || JSON.stringify(err)));
+        toast.error("Error: " + (err?.message || "Failed to add product"));
       }
     },
 
@@ -583,7 +584,7 @@ export const useStore = create<DashboardStore>((set, get) => {
             .eq('id', id);
           if (prodErr) {
             console.error("Error updating product:", prodErr);
-            alert("Failed to update product: " + prodErr.message);
+            toast.error("Failed to update product: " + prodErr.message);
             return;
           }
         }
@@ -627,7 +628,7 @@ export const useStore = create<DashboardStore>((set, get) => {
         }));
       } catch (err: any) {
         console.error("updateProduct error:", err);
-        alert("updateProduct Exception: " + (err?.message || JSON.stringify(err)));
+        toast.error("Error: " + (err?.message || "Failed to update product"));
       }
     },
 
@@ -673,7 +674,7 @@ export const useStore = create<DashboardStore>((set, get) => {
         }
       } catch (err: any) {
         console.error("addCategory error:", err);
-        alert("addCategory Exception: " + (err?.message || JSON.stringify(err)));
+        toast.error("Error: " + (err?.message || "Failed to add category"));
       }
     },
 

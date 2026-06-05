@@ -14,15 +14,19 @@ import {
   ShieldCheck,
   PackageSearch,
   Ticket,
-  Camera
+  Camera,
+  Menu,
+  X
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { Toaster } from 'react-hot-toast';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { hydrate, userRole, setRole } = useStore();
   const [mounted, setMounted] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     hydrate();
@@ -68,6 +72,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-screen bg-[#f3eff5] flex">
+      <Toaster position="top-right" />
       {/* Sidebar Navigation */}
       <aside className="w-64 bg-white border-r border-slate-200 flex flex-col sticky top-0 h-screen shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 hidden md:flex">
         <div className="p-6 border-b border-slate-100 flex items-center gap-3">
@@ -115,14 +120,73 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <main className="flex-1 overflow-x-hidden bg-[#fffcfd]">
         {/* Mobile Header (Visible only on small screens) */}
         <div className="md:hidden bg-white p-4 border-b border-slate-200 flex items-center justify-between sticky top-0 z-20">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setMobileMenuOpen(true)}
+              className="p-1.5 -ml-1.5 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
             <ShieldCheck className="w-6 h-6 text-fuchsia-600" />
             <span className="font-serif font-black text-lg text-slate-900">Royal Admin</span>
           </div>
-          <button onClick={handleLogout} className="p-2 text-slate-500 hover:text-rose-600">
+          <button onClick={handleLogout} className="p-2 text-slate-500 hover:text-rose-600 transition-colors">
             <LogOut className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Mobile Menu Overlay */}
+        {mobileMenuOpen && (
+          <div className="fixed inset-0 z-50 md:hidden flex">
+            {/* Backdrop */}
+            <div 
+              className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm"
+              onClick={() => setMobileMenuOpen(false)}
+            />
+            
+            {/* Drawer */}
+            <div className="relative flex flex-col w-72 max-w-[80%] bg-white h-full shadow-2xl animate-in slide-in-from-left-full duration-300">
+              <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-fuchsia-600 to-pink-500 flex items-center justify-center text-white shadow-lg shadow-fuchsia-500/30">
+                    <ShieldCheck className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h1 className="font-serif font-black text-lg text-slate-900 leading-tight">Royal</h1>
+                    <p className="text-[10px] font-bold text-fuchsia-600 uppercase tracking-widest">Command Center</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
+                {navItems.map((item) => {
+                  const isActive = pathname === item.href;
+                  return (
+                    <Link 
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                        isActive 
+                          ? 'bg-fuchsia-50 text-fuchsia-700 font-bold' 
+                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
+                      }`}
+                    >
+                      <item.icon className={`w-5 h-5 ${isActive ? 'text-fuchsia-600' : 'text-slate-400'}`} />
+                      <span className="text-sm">{item.name}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+          </div>
+        )}
         
         {/* Page Content */}
         <div className="p-4 sm:p-8 max-w-7xl mx-auto">
